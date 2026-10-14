@@ -1,0 +1,3081 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIMathQuest</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <!-- Chart.js 官方 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --secondary: #0284c7;
+      --accent-gold: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --study-theme: #0d9488;
+      --study-hover: #0f766e;
+      --bg-page: #f1f5f9;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background: var(--bg-page);
+      min-height: 100vh;
+      color: var(--text-main);
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    #ambientCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app-container {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 24px auto;
+      padding: 0 16px 80px 16px;
+    }
+
+    .festival-banner {
+      display: none;
+      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+      color: #ffffff;
+      text-align: center;
+      padding: 12px 18px;
+      border-radius: 16px;
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin-bottom: 20px;
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+      animation: festivalPulse 2.5s infinite;
+    }
+    @keyframes festivalPulse {
+      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+      70% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    }
+
+    .header-area {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .brand-title {
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+
+    .brand-subtitle {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .user-hud-bar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 10px;
+    }
+
+    .hud-pill {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      border: 1.5px solid #cbd5e1;
+      padding: 6px 14px;
+      border-radius: 18px;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+      gap: 12px;
+      max-width: 100%;
+    }
+
+    .hud-avatar-slot {
+      width: 40px;
+      height: 40px;
+      min-width: 40px;
+      min-height: 40px;
+      aspect-ratio: 1 / 1;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 2px solid var(--primary);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+    }
+    .hud-avatar-slot:hover {
+      transform: scale(1.12);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25);
+    }
+    .hud-avatar-slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .hud-name-wrapper {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .hud-nickname {
+      font-weight: 800;
+      color: #0f172a;
+      font-size: 0.98rem;
+    }
+    .hud-achievement-inline {
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+
+    .hud-badge-slot {
+      font-size: 0.78rem;
+      font-weight: 800;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px dashed;
+    }
+    .hud-level { background: #fef3c7; color: #b45309; border-color: #fcd34d; }
+
+    .hud-title {
+      background: #e0f2fe;
+      color: #0369a1;
+      border-color: #7dd3fc;
+      white-space: pre-line;
+      line-height: 1.25;
+      text-align: left;
+    }
+
+    .btn-teacher-panel-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #38bdf8;
+      border: 1.5px solid #38bdf8;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2);
+      transition: all 0.2s;
+    }
+    .btn-teacher-panel-badge:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(56, 189, 248, 0.35);
+    }
+
+    .campus-card {
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06);
+      border: 1px solid var(--border-color);
+      margin-bottom: 20px;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-group { margin-bottom: 24px; }
+    .form-label {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .input-text {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border-color);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-main);
+      background: #f8fafc;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .input-text:focus {
+      border-color: var(--primary);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .input-text.exam-active-mode {
+      background: #fff7ed;
+      border-color: #f97316;
+      color: #c2410c;
+      font-weight: 800;
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+    }
+
+    .sticky-progress-container {
+      position: sticky;
+      top: 12px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(10px);
+      padding: 14px 20px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+      border: 1.5px solid rgba(226, 232, 240, 0.8);
+      margin-bottom: 24px;
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .progress-title { font-weight: 800; font-size: 0.95rem; color: #1e293b; }
+    .progress-stat { font-weight: 800; font-size: 1rem; color: var(--primary); }
+
+    .energy-bar-track {
+      width: 100%;
+      height: 12px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .energy-bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #2563eb, #00d2ff, #3b82f6);
+      background-size: 200% 100%;
+      animation: energyPulse 2s linear infinite;
+      box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes energyPulse {
+      0% { background-position: 100% 0%; }
+      100% { background-position: -100% 0%; }
+    }
+
+    .category-group-list { display: flex; flex-direction: column; gap: 16px; }
+    .group-block {
+      background: #f8fafc;
+      border: 1.5px solid var(--border-color);
+      border-radius: 16px;
+      padding: 16px 18px;
+    }
+    .group-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .group-title-box { display: flex; align-items: center; gap: 8px; }
+    .group-title { font-size: 1.02rem; font-weight: 800; color: #0f172a; }
+    .group-subtitle { font-size: 0.82rem; color: var(--text-muted); font-weight: 600; }
+    .btn-group-toggle {
+      background: #e2e8f0;
+      color: #334155;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-group-toggle:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .group-items-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .category-chip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 11px 14px;
+      border-radius: 10px;
+      background: #ffffff;
+      border: 1.5px solid var(--border-color);
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: #475569;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+    .category-chip input { display: none; }
+    .category-chip.active {
+      background: #eff6ff;
+      border-color: var(--primary);
+      color: var(--primary);
+      box-shadow: 0 3px 8px rgba(37, 99, 235, 0.15);
+      font-weight: 800;
+    }
+
+    .category-chip.locked-category {
+      background: #fff7ed !important;
+      border-color: #f97316 !important;
+      color: #c2410c !important;
+      cursor: not-allowed !important;
+      box-shadow: 0 3px 8px rgba(249, 115, 22, 0.2) !important;
+      font-weight: 800 !important;
+    }
+
+    .category-chip.exam-forbidden {
+      opacity: 0.35 !important;
+      cursor: not-allowed !important;
+      pointer-events: none !important;
+      background: #f1f5f9 !important;
+      border-color: #cbd5e1 !important;
+      color: #94a3b8 !important;
+      filter: grayscale(1);
+    }
+
+    .slider-box {
+      background: #f8fafc;
+      padding: 18px;
+      border-radius: 14px;
+      border: 1.5px solid var(--border-color);
+    }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .slider-badge {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--primary);
+      background: #dbeafe;
+      padding: 4px 14px;
+      border-radius: 999px;
+    }
+    .range-slider {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: #cbd5e1;
+      outline: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+    }
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+    }
+    .range-slider:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+
+    .btn-campus {
+      width: 100%;
+      padding: 16px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #ffffff;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%);
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28);
+      transition: all 0.2s ease;
+    }
+    .btn-campus:hover {
+      background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%);
+      transform: translateY(-2px);
+    }
+
+    .question-card {
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 24px 22px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+    }
+    .q-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .q-tags-group { display: flex; align-items: center; gap: 8px; }
+    .q-category-tag {
+      background: #e0f2fe;
+      color: #0369a1;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .q-ability-tag {
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+      font-weight: 800;
+      font-size: 0.85rem;
+      padding: 3px 9px;
+      border-radius: 6px;
+    }
+
+    .q-counter { font-weight: 800; font-size: 0.95rem; color: var(--secondary); }
+    
+    /* 修正題目與詳解文字顯示，去除預設邊距 */
+    .q-content {
+      font-size: 1.12rem;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.6;
+      margin-bottom: 18px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'Consolas', 'Roboto Mono', 'Fira Code', 'Courier New', monospace;
+      text-indent: 0 !important;
+    }
+
+    .options-list { display: flex; flex-direction: column; gap: 10px; }
+    .option-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 16px;
+      background: #f8fafc;
+      border: 1.5px solid var(--border-color);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .option-item:hover { background: #f1f5f9; border-color: #94a3b8; }
+    .option-item.selected { background: #eff6ff; border-color: var(--primary); }
+    .option-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: #475569;
+      flex-shrink: 0;
+    }
+    .option-item.selected .option-circle { background: var(--primary); color: #ffffff; }
+    .option-text {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #334155;
+      line-height: 1.5;
+      word-break: break-word;
+      white-space: pre-wrap;
+      font-family: 'Consolas', 'Roboto Mono', 'Segoe UI', monospace;
+    }
+
+    .result-center { text-align: center; padding: 10px 0 20px 0; }
+    .score-badge-circle {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 18px auto;
+      color: #ffffff;
+      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.3);
+    }
+    .score-num { font-size: 2.8rem; font-weight: 900; line-height: 1; }
+    .score-label { font-size: 0.85rem; font-weight: 700; opacity: 0.9; }
+
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+    .stat-card {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border-color);
+      text-align: center;
+    }
+    .stat-card-val { font-size: 1.7rem; font-weight: 900; color: var(--primary); }
+    .stat-card-title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin-top: 4px; }
+
+    /* 大尺寸、獨立一行、防溢出之立體雷達圖卡片 */
+    .radar-academic-card {
+      background: linear-gradient(160deg, #ffffff 0%, #f0fdfa 45%, #f8fafc 100%);
+      border: 1.5px solid #cbd5e1;
+      border-radius: 24px;
+      padding: 32px 16px;
+      margin: 28px 0;
+      box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(226, 232, 240, 0.8);
+      position: relative;
+      overflow: visible;
+      text-align: center;
+    }
+    .radar-card-header {
+      border-bottom: 1.5px solid #e2e8f0;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+    .radar-main-title {
+      font-size: 1.45rem;
+      font-weight: 900;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .radar-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      font-weight: 600;
+    }
+    .radar-full-container {
+      position: relative;
+      width: 100%;
+      max-width: 580px;
+      margin: 0 auto;
+      aspect-ratio: 1 / 1;
+      filter: drop-shadow(0 14px 28px rgba(37, 99, 235, 0.18));
+      padding: 10px;
+    }
+
+    .wrong-item {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 20px;
+      border-left: 5px solid var(--danger);
+      border-top: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+    }
+    .review-options-container { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 16px 0; }
+    .review-opt {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+    }
+    .review-opt.opt-user-wrong { background: #fef2f2; border-color: #f87171; }
+    .review-opt.opt-correct { background: #f0fdf4; border-color: #4ade80; }
+    .review-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.85rem;
+      color: #475569;
+      flex-shrink: 0;
+    }
+    .review-opt.opt-user-wrong .review-circle { background: var(--danger); color: #ffffff; }
+    .review-opt.opt-correct .review-circle { background: var(--success); color: #ffffff; }
+    .review-text {
+      flex: 1;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #334155;
+      line-height: 1.4;
+      word-break: break-word;
+      white-space: pre-wrap;
+      font-family: 'Consolas', 'Roboto Mono', monospace;
+    }
+    .review-flag { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; white-space: nowrap; }
+    .flag-wrong { background: #fee2e2; color: #b91c1c; }
+    .flag-correct { background: #dcfce7; color: #15803d; }
+    
+    /* 修正題目解析框：嚴格頂格對齊，消除開頭縮排 */
+    .explanation-container {
+      padding: 14px 16px;
+      background: #f0f9ff;
+      border-radius: 10px;
+      border-left: 4px solid var(--secondary);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #0369a1;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      text-indent: 0 !important;
+    }
+
+    .loader-box {
+      position: fixed;
+      inset: 0;
+      background: rgba(241, 245, 249, 0.92);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: var(--primary);
+      font-weight: 800;
+      font-size: 1.2rem;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #cbd5e1;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(6px);
+      z-index: 99999;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: 24px;
+      max-width: 540px;
+      width: 100%;
+      padding: 28px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+      animation: modalSlide 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    @keyframes modalSlide {
+      from { transform: scale(0.92) translateY(20px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .avatar-matrix-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+      margin-bottom: 24px;
+      max-height: 280px;
+      overflow-y: auto;
+      padding: 4px;
+    }
+
+    .avatar-matrix-item {
+      aspect-ratio: 1;
+      border-radius: 14px;
+      border: 2px solid #e2e8f0;
+      background: #f8fafc;
+      cursor: pointer;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .avatar-matrix-item:hover {
+      transform: scale(1.1);
+      border-color: #93c5fd;
+      box-shadow: 0 6px 14px rgba(37, 99, 235, 0.15);
+      z-index: 2;
+    }
+    .avatar-matrix-item.selected {
+      border-color: var(--primary);
+      transform: scale(1.06);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3), 0 8px 18px rgba(37, 99, 235, 0.35);
+      outline: 2px solid var(--primary);
+      background: #eff6ff;
+    }
+    .avatar-matrix-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .lottery-nums-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 120px;
+      overflow-y: auto;
+      padding: 10px;
+      background: #f8fafc;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      margin: 12px 0;
+    }
+    .lottery-chip {
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #e2e8f0;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #334155;
+    }
+    .lottery-chip.hit {
+      background: #fef08a;
+      color: #854d0e;
+      border: 1.5px solid #eab308;
+      font-weight: 900;
+      animation: pulse 1s infinite;
+    }
+
+    .wish-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      background: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .wish-item:hover {
+      background: #fefce8;
+      border-color: #fde047;
+    }
+    .wish-item.selected {
+      background: #fef08a !important;
+      border-color: #eab308 !important;
+      box-shadow: 0 4px 14px rgba(234, 179, 8, 0.32);
+    }
+    .wish-circle { font-size: 1.7rem; flex-shrink: 0; }
+    .wish-text { font-size: 0.95rem; color: #1e293b; line-height: 1.4; }
+
+    /* 近期活動卡片排版 */
+    .activity-card {
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1.5px solid var(--border-color);
+      overflow: hidden;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+      max-width: 480px;
+      margin: 0 auto;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .activity-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+    }
+    .activity-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #0f172a;
+      text-align: center;
+      padding: 14px 16px;
+      background: #f8fafc;
+      border-bottom: 1.5px solid var(--border-color);
+    }
+    .activity-poster-box {
+      width: 100%;
+      height: 280px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      background: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .activity-poster-box img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+      transition: transform 0.3s ease;
+    }
+    .activity-poster-box:hover img { transform: scale(1.02); }
+    .activity-hint {
+      position: absolute;
+      bottom: 10px;
+      right: 12px;
+      background: rgba(15, 23, 42, 0.75);
+      color: #ffffff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      backdrop-filter: blur(4px);
+    }
+
+    .study-topic-chip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 2px solid var(--border-color);
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.94rem;
+      color: #334155;
+      transition: all 0.2s ease;
+    }
+    .study-topic-chip:hover {
+      border-color: var(--study-theme);
+      background: #f0fdfa;
+      transform: translateY(-1px);
+    }
+    .study-topic-chip.selected {
+      background: #f0fdfa !important;
+      border-color: var(--study-theme) !important;
+      color: var(--study-hover) !important;
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.22);
+      font-weight: 800;
+    }
+    .study-radio-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .study-topic-chip.selected .study-radio-icon {
+      border-color: var(--study-theme);
+      background: var(--study-theme);
+    }
+    .study-radio-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ffffff;
+      display: none;
+    }
+    .study-topic-chip.selected .study-radio-dot { display: block; }
+
+    .study-item-card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 20px;
+      border-left: 5px solid var(--study-theme);
+      border-top: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="ambientCanvas"></canvas>
+
+  <!-- 作弊中斷警告視窗 -->
+  <div id="violationModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 440px; text-align: center; border-top: 6px solid var(--danger);">
+      <div style="font-size: 3.2rem; margin-bottom: 8px;">🚨</div>
+      <h3 style="font-size: 1.35rem; font-weight: 800; color: #b91c1c; margin-bottom: 10px;">
+        考室紀律異常警告！
+      </h3>
+      <div id="violationModalMsg" style="color: #475569; font-size: 0.95rem; line-height: 1.6; margin-bottom: 22px; text-align: left; background: #fef2f2; padding: 14px 16px; border-radius: 12px; border: 1px solid #fecaca;">
+        偵測到跳出測驗頁面！
+      </div>
+      <button class="btn-campus" style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); box-shadow: 0 6px 16px rgba(239, 68, 68, 0.3);" onclick="dismissViolationModal()">
+        我知道已被記錄至考室記錄當中，立即返回專注作答
+      </button>
+    </div>
+  </div>
+
+  <!-- 暱稱頭像 Modal -->
+  <div id="profileModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 id="modalTitle" style="font-size: 1.35rem; font-weight: 800; color: #0f172a; margin-bottom: 6px;">
+        🎨 設定個人冒險檔案
+      </h3>
+      <p id="modalDesc" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 18px;">
+        自訂專屬暱稱與頭像樣式，展現您的學習風采！
+      </p>
+
+      <div class="form-group" style="margin-bottom: 18px;">
+        <label class="form-label" for="inputModalNickname">✏️ 您的自訂暱稱 (1~12字元)</label>
+        <input type="text" id="inputModalNickname" class="input-text" placeholder="請輸入自訂暱稱..." maxlength="12">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label">🎭 點選更換頭像樣式 (5×4 矩陣)</label>
+        <div id="avatarMatrixContainer" class="avatar-matrix-grid"></div>
+      </div>
+
+      <div style="display: flex; gap: 12px;">
+        <button id="btnCancelProfile" class="btn-campus" style="background: #e2e8f0; color: #334155; box-shadow: none;" onclick="closeProfileModal()">取消</button>
+        <button class="btn-campus" onclick="handleConfirmProfileSave()">確認並套用</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 抽獎揭曉 Modal -->
+  <div id="lotteryResultModal" class="modal-overlay">
+    <div class="modal-card" style="text-align: center;">
+      <div id="lotteryIcon" style="font-size: 3.5rem; margin-bottom: 8px;">🎁</div>
+      <h3 id="lotteryModalTitle" style="font-size: 1.4rem; font-weight: 900; margin-bottom: 8px;">幸運大抽獎揭曉</h3>
+      <div id="lotteryModalDesc" style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 12px;"></div>
+      
+      <div id="lotteryNumbersBox" class="lottery-nums-container"></div>
+      
+      <div id="lotteryPrizeBanner" style="display:none; background:#ecfdf5; border:1.5px solid #10b981; border-radius:14px; padding:14px; margin-bottom:20px;">
+        <div style="font-size:0.85rem; font-weight:800; color:#047857;">🎉 幸運降臨！恭喜獲得：</div>
+        <div id="lotteryPrizeName" style="font-size:1.2rem; font-weight:900; color:#065f46; margin-top:4px;"></div>
+      </div>
+
+      <button id="btnLotteryContinue" class="btn-campus" onclick="proceedAfterLottery()">確定</button>
+    </div>
+  </div>
+
+  <!-- 心想事成 Modal -->
+  <div id="wishesModal" class="modal-overlay">
+    <div class="modal-card" style="text-align: center;">
+      <div style="font-size: 3.5rem; margin-bottom: 8px;">🍀</div>
+      <h3 style="font-size: 1.4rem; font-weight: 900; margin-bottom: 6px;">心想事成！</h3>
+      <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px;">
+        恭喜獲得特別事件！請在以下四者中指定一項獲得：
+      </p>
+
+      <div id="wishOptionsContainer" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; text-align: left;">
+        <div class="wish-item selected" onclick="selectWish('meteor', this)">
+          <div class="wish-circle">🌠</div>
+          <div class="wish-text"><b>事件：流星雨下的祝福</b><br><span style="font-size:0.85rem; color:#475569;">你們都可在下一次答題中獲得雙倍經驗值累加入庫</span></div>
+        </div>
+        <div class="wish-item" onclick="selectWish('megaphone', this)">
+          <div class="wish-circle">💬</div>
+          <div class="wish-text"><b>道具：眾裡尋他傳聲筒</b><br><span style="font-size:0.85rem; color:#475569;">傳送一段訊息給對方，對方將獲得驀然回首傳聲筒回應機會</span></div>
+        </div>
+        <div class="wish-item" onclick="selectWish('more', this)">
+          <div class="wish-circle">🤪</div>
+          <div class="wish-text"><b>技能：多多益善</b><br><span style="font-size:0.85rem; color:#475569;">鎖定對方下一次練習必須挑戰 60 道題目</span></div>
+        </div>
+        <div class="wish-item" onclick="selectWish('knowledge', this)">
+          <div class="wish-circle">📖</div>
+          <div class="wish-text"><b>增益：知識的共鳴</b><br><span style="font-size:0.85rem; color:#475569;">引起知識的共鳴與老師的注意，下一次測驗將獲加分！（可累加）</span></div>
+        </div>
+      </div>
+
+      <button class="btn-campus" onclick="handleConfirmWish()">心想事成！</button>
+    </div>
+  </div>
+
+  <!-- 互動事件 Modal -->
+  <div id="interactiveActionModal" class="modal-overlay">
+    <div class="modal-card">
+      <div style="text-align:center; font-size:3rem; margin-bottom:6px;" id="actionIcon">🎯</div>
+      <h3 id="actionTitle" style="font-size: 1.35rem; font-weight: 900; text-align: center; margin-bottom: 6px;"></h3>
+      <p id="actionDesc" style="color: var(--text-muted); font-size: 0.9rem; text-align: center; margin-bottom: 18px; line-height: 1.5;"></p>
+
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label class="form-label">🏫 目標同學班別 (範例：S1A)</label>
+        <input type="text" id="actionTargetClass" class="input-text" placeholder="例如：S1A" maxlength="6">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label class="form-label">👤 目標同學姓名 (範例：陳星星)</label>
+        <input type="text" id="actionTargetName" class="input-text" placeholder="請輸入姓名..." maxlength="12">
+      </div>
+
+      <div class="form-group" id="actionMessageGroup" style="display: none; margin-bottom: 14px;">
+        <label class="form-label">✉️ 傳聲文字信息</label>
+        <input type="text" id="actionMessageText" class="input-text" placeholder="想對對方說的話..." maxlength="60">
+      </div>
+
+      <button id="btnActionSubmit" class="btn-campus" onclick="submitInteractiveAction()">送出</button>
+    </div>
+  </div>
+
+  <!-- 待處理通知 Modal -->
+  <div id="pendingNoticeModal" class="modal-overlay">
+    <div class="modal-card" style="text-align: center;">
+      <div style="font-size: 3.2rem; margin-bottom: 8px;" id="noticeIcon">📬</div>
+      <h3 id="noticeTitle" style="font-size: 1.35rem; font-weight: 900; margin-bottom: 8px;"></h3>
+      <div id="noticeContent" style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 22px; text-align: left; background: #f8fafc; padding: 16px; border-radius: 14px; border: 1.5px solid #e2e8f0;"></div>
+      <div id="noticeBtnArea" style="display:flex; gap:12px;"></div>
+    </div>
+  </div>
+
+  <!-- 重置錯題庫 Modal -->
+  <div id="resetMistakeModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 style="font-size: 1.35rem; font-weight: 800; color: #0f172a; margin-bottom: 6px;">
+        🔄 重置個人錯題庫
+      </h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
+        請勾選欲清空錯題記錄的課題（可多選）：
+      </p>
+
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+        <button type="button" class="btn-group-toggle" onclick="toggleSelectAllResetMistakes()">全選 / 取消</button>
+      </div>
+
+      <div id="resetMistakeCategoryGrid" class="group-items-grid" style="max-height: 240px; overflow-y: auto; margin-bottom: 20px;"></div>
+
+      <div style="display: flex; gap: 12px;">
+        <button class="btn-campus" style="background: #e2e8f0; color: #334155; box-shadow: none;" onclick="closeResetMistakeModal()">取消</button>
+        <button class="btn-campus" style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);" onclick="handleConfirmResetMistakes()">確認重置選定課題</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 學習特定課題 Modal -->
+  <div id="topicSelectModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 620px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <h3 style="font-size: 1.35rem; font-weight: 800; color: #0f172a;">
+          📚 學習特定課題
+        </h3>
+        <span style="font-size: 0.82rem; font-weight: 800; color: var(--study-theme); background: #ccfbf1; padding: 4px 10px; border-radius: 999px;">單選課題</span>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
+        請從下方矩陣點選一個您目前想深入研讀的課題：
+      </p>
+
+      <div id="studyTopicMatrixContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; max-height: 290px; overflow-y: auto; padding: 4px; margin-bottom: 22px;"></div>
+
+      <div style="display: flex; gap: 12px;">
+        <button class="btn-campus" style="background: #e2e8f0; color: #334155; box-shadow: none;" onclick="closeTopicSelectModal()">取消</button>
+        <button class="btn-campus" style="background: linear-gradient(135deg, var(--study-theme) 0%, var(--study-hover) 100%); box-shadow: 0 4px 14px rgba(13, 148, 136, 0.28);" onclick="handleConfirmTopicStudy()">確認研讀該課題</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <div id="festivalBanner" class="festival-banner">
+      🎉 慶典進行中，目前抽獎加乘倍數：<span id="festivalMultiplierVal">1</span> 倍！
+    </div>
+
+    <div class="header-area">
+      <h1 class="brand-title">AIMathQuest</h1>
+      <p class="brand-subtitle">自主學習・即時反饋・遊戲互動</p>
+    </div>
+
+    <!-- 步驟 0：登入驗證 -->
+    <div id="authView" class="campus-card" style="text-align: center; padding: 40px 20px;">
+      <div style="font-size: 3rem; margin-bottom: 16px;">🏫</div>
+      <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">請使用學校 Google 帳號登入</h2>
+
+      <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+        <div id="g_id_onload"
+             data-client_id="171734689833-dllsjer747lvi8a416ittgsvilept2r5.apps.googleusercontent.com"
+             data-context="signin"
+             data-ux_mode="popup"
+             data-hd="g.puiching.edu.mo"
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="rectangular"
+             data-theme="outline"
+             data-size="large">
+        </div>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.95rem;">
+        今天學習了嗎？ Link Start!
+      </p>
+    </div>
+
+    <!-- 步驟 1：客製設定主頁 -->
+    <div id="setupView" style="display: none;">
+      <div class="campus-card">
+        <div class="user-hud-bar" id="userHudBar">
+          <div class="hud-pill">
+            <div class="hud-avatar-slot" onclick="openProfileModal(false)" title="點選更換頭像與暱稱">
+              <img id="hudAvatarImg" src="icons/icon_1.png" alt="Avatar">
+            </div>
+            <div class="hud-name-wrapper">
+              <span id="hudNickname" class="hud-nickname">載入中...</span>
+              <span id="hudAchievement" class="hud-achievement-inline"></span>
+            </div>
+            <span id="hudLevel" class="hud-badge-slot hud-level"></span>
+            <span id="hudTitle" class="hud-badge-slot hud-title"></span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" id="examRoomLabel">🏫 目前模式</label>
+          <input type="text" id="examRoomInput" class="input-text" value="日常練習" readonly>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">📂 選擇練習範疇 (依類別自選或全選)</label>
+          <div id="categoryGroupContainer" class="category-group-list">
+            <div style="color: var(--text-muted); font-size: 0.95rem;">正在驗證身分並載入題庫...</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="slider-box">
+            <div class="slider-header">
+              <span class="form-label" style="margin-bottom:0;">🎯 本次練習題數</span>
+              <span id="sliderValue" class="slider-badge">30 題</span>
+            </div>
+            <input type="range" id="countSlider" class="range-slider" min="20" max="60" step="10" value="30">
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 14px;">
+          <button id="btnStart" class="btn-campus" style="flex: 2;" onclick="handleStartQuiz()">🚀 隨機生成題目</button>
+          <button id="btnOpenMistakes" class="btn-campus" style="flex: 1; background: linear-gradient(135deg, #475569 0%, #334155 100%); box-shadow: 0 4px 12px rgba(51, 65, 85, 0.25);" onclick="openMistakeBankView()">📖 個人錯題庫</button>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <button id="btnStudyTopic" class="btn-campus" style="background: linear-gradient(135deg, var(--study-theme) 0%, var(--study-hover) 100%); box-shadow: 0 4px 14px rgba(13, 148, 136, 0.28);" onclick="openTopicSelectModal()">
+            📚 學習特定課題
+          </button>
+        </div>
+      </div>
+
+      <!-- 近期活動推廣區 -->
+      <div id="recentActivitiesSection" class="campus-card" style="margin-top: 24px; display: none;">
+        <h3 style="text-align: center; font-size: 1.35rem; font-weight: 800; color: #0f172a; margin-bottom: 20px;">
+          📢 近期活動
+        </h3>
+        <div id="activitiesListContainer" style="display: flex; flex-direction: column; gap: 24px;"></div>
+      </div>
+    </div>
+
+    <!-- 步驟 1.5：個人錯題庫重溫 -->
+    <div id="mistakeBankView" style="display: none;">
+      <div class="campus-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid var(--border-color); padding-bottom: 14px; margin-bottom: 18px;">
+          <div>
+            <h2 style="font-size: 1.45rem; font-weight: 800; color: #0f172a;">📖 個人錯題庫重溫</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">歷史答錯題目、正解與說明複習專區</p>
+          </div>
+          <button class="btn-campus" style="width: auto; padding: 10px 18px; font-size: 0.9rem; background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); box-shadow: none;" onclick="openResetMistakeModal()">🔄 重置錯題庫</button>
+        </div>
+
+        <div id="mistakeCardsContainer">
+          <div style="text-align: center; color: var(--text-muted); padding: 40px;">正在讀取錯題庫記錄...</div>
+        </div>
+
+        <div style="margin-top: 26px;">
+          <button class="btn-campus" style="background: linear-gradient(135deg, #475569 0%, #334155 100%);" onclick="closeMistakeBankView()">🔙 返回自定義練習</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 步驟 1.6：學習特定課題專屬頁面 -->
+    <div id="topicStudyView" style="display: none;">
+      <div class="campus-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid var(--border-color); padding-bottom: 14px; margin-bottom: 18px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.5rem;">📚</span>
+              <h2 id="topicStudyTitle" style="font-size: 1.45rem; font-weight: 800; color: #0f172a;">課題全題研讀</h2>
+            </div>
+            <p id="topicStudySubtitle" style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">標準答案、完整選項、深度詳解與能力指標自主研讀</p>
+          </div>
+          <span id="topicStudyCountBadge" style="background: #ccfbf1; color: var(--study-hover); font-weight: 800; font-size: 0.88rem; padding: 6px 14px; border-radius: 999px;">共 0 題</span>
+        </div>
+
+        <div id="topicStudyCardsContainer">
+          <div style="text-align: center; color: var(--text-muted); padding: 40px;">正在讀取課題全量題庫...</div>
+        </div>
+
+        <div style="margin-top: 26px;">
+          <button class="btn-campus" style="background: linear-gradient(135deg, #475569 0%, #334155 100%);" onclick="closeTopicStudyView()">🔙 返回自定義練習</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 步驟 2：作答頁面 -->
+    <div id="quizView" style="display: none;">
+      <div class="sticky-progress-container">
+        <div class="progress-info">
+          <span class="progress-title">⚡ 作答進度</span>
+          <span id="progressStat" class="progress-stat">0 / 0 題 (0%)</span>
+        </div>
+        <div class="energy-bar-track">
+          <div id="energyBarFill" class="energy-bar-fill"></div>
+        </div>
+      </div>
+
+      <div id="questionsScrollContainer"></div>
+      <div class="campus-card" style="margin-top: 20px;">
+        <button id="btnSubmit" class="btn-campus" onclick="handleSubmitQuizWithRetry()">📝 完成並提交作答</button>
+      </div>
+    </div>
+
+    <!-- 步驟 3：結算展示與錯題診斷 -->
+    <div id="resultView" class="campus-card" style="display: none;">
+      <div class="result-center">
+        <div class="score-badge-circle">
+          <span class="score-num" id="resCorrect">0</span>
+          <span class="score-label" id="resTotalLabel">/ 0 題</span>
+        </div>
+        <h2 id="resultTitle" style="font-size: 1.6rem; font-weight: 800; color: #0f172a; margin-bottom: 6px;">提交完成！</h2>
+        
+        <div id="meteorExpBanner" style="display:none; background:#fef3c7; border:1.5px solid #f59e0b; color:#b45309; padding:8px 16px; border-radius:999px; font-weight:800; font-size:0.95rem; margin-bottom:12px; display:inline-block;">
+          🌠【流星雨下的祝福】生效！本次答對題數與課題表現以雙倍（x2）累記入庫！
+        </div>
+
+        <p id="resultDesc" style="color: var(--text-muted); font-weight: 600;">已成功記錄於數據庫</p>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-card-val" id="resAccuracy">0%</div>
+            <div class="stat-card-title">本次答對率</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-val" id="resAllTimeCorrect">0</div>
+            <div class="stat-card-title">🌟 累計答對總題數</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 大尺寸立體雷達圖（獨佔一行、文字防截斷、取消閃爍） -->
+      <div id="radarSection" class="radar-academic-card" style="display: none;">
+        <div class="radar-card-header">
+          <div class="radar-main-title">
+            <span>🎯</span> 測驗能力指標診斷雷達圖
+          </div>
+          <div class="radar-subtitle">全方位學力維度與思維素養即時評估</div>
+        </div>
+
+        <div class="radar-full-container">
+          <canvas id="abilityRadarChartCanvas"></canvas>
+        </div>
+      </div>
+
+      <div id="wrongSection">
+        <h3 style="font-size: 1.15rem; font-weight: 800; color: #1e293b; margin-bottom: 14px;">🔍 本次練習錯題診斷與詳解</h3>
+        <div id="wrongListContainer"></div>
+      </div>
+
+      <div style="margin-top: 26px;">
+        <button class="btn-campus" onclick="handleResetToSetup()">🔄 返回自定義設置</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loadingOverlay" class="loader-box" style="display: none;">
+    <div class="spinner"></div>
+    <div id="loadingText">載入中...</div>
+  </div>
+
+  <script>
+    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbx_QV-pczlnPVo7VXlLakHl-M3SDQroS3pakbgZ_x0E9VMXXOrcXQn_6g1XxgDANMo_OQ/exec';
+
+    let userAuthToken = '';
+    let currentUserProfile = null;
+    let currentExamConfig = null;
+    let selectedAvatarStyle = 'icon_1';
+
+    let currentQuizData = [];
+    const userAnswers = {};
+
+    let violationCount = 0;
+    const violationLogs = [];
+    let isQuizActive = false;
+    let isViolationModalOpen = false;
+
+    let activeLotteryData = null;
+    let activePendingQueue = [];
+    let currentActionType = '';
+
+    let currentMistakeBankData = null;
+    let cachedCategoryGroups = [];
+    let selectedStudyCategory = '';
+
+    let radarChartInstance = null;
+
+    /* ================= 1. API 通訊 ================= */
+    async function callGasApi(action, data = {}) {
+      const response = await fetch(GAS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: action, token: userAuthToken, data: data })
+      });
+      const resJson = await response.json();
+      if (resJson.status !== 'success') {
+        throw new Error(resJson.message || '伺服器拒絕操作');
+      }
+      return resJson;
+    }
+
+    function isMoreTheMerrierActive() {
+      const isExam = currentExamConfig && currentExamConfig.isExamMode;
+      if (isExam) return false;
+      if (!currentUserProfile) return false;
+      const val = String(currentUserProfile.moreIsMerrierActive).trim().toLowerCase();
+      return (val === '1' || val === 'true' || val === '是');
+    }
+
+    async function handleCredentialResponse(response) {
+      userAuthToken = response.credential;
+      showLoading(true, '⚡ 極速登入驗證中...');
+
+      try {
+        const res = await callGasApi('getInitData');
+        showLoading(false);
+
+        currentUserProfile = res.userProfile;
+        currentExamConfig = res.examConfig || { isExamMode: false, examName: '日常練習', lockedCategories: [] };
+        cachedCategoryGroups = res.categoryGroups || [];
+
+        document.getElementById('authView').style.display = 'none';
+        document.getElementById('setupView').style.display = 'block';
+
+        updateHudUI(currentUserProfile);
+        applyExamConfigUI(currentExamConfig);
+        renderBackendGroupedCategories(cachedCategoryGroups);
+        renderPromotionActivities(res.activities || []);
+
+        if (currentUserProfile.isTeacher) {
+          injectTeacherPanelButton();
+        }
+
+        checkMoreTheMerrierOnLogin();
+
+        if (currentUserProfile.isFirstTime || !currentUserProfile.nickname) {
+          openProfileModal(true);
+        }
+
+      } catch (err) {
+        showLoading(false);
+        alert('登入失敗：' + err.message);
+      }
+    }
+
+    function injectTeacherPanelButton() {
+      if (document.getElementById('btnTeacherPanelDynamic')) return;
+
+      const btn = document.createElement('button');
+      btn.id = 'btnTeacherPanelDynamic';
+      btn.className = 'btn-teacher-panel-badge';
+      btn.innerHTML = '🎛️ 模式控制面板';
+      btn.title = '開啟教師專用模式控制面板';
+      btn.onclick = openTeacherControlPanelWindow;
+
+      const hudBar = document.getElementById('userHudBar');
+      hudBar.insertBefore(btn, hudBar.firstChild);
+    }
+
+    function updateHudUI(profile) {
+      document.getElementById('hudNickname').textContent = profile.nickname || '未命名';
+      document.getElementById('hudAchievement').textContent = profile.achievement || '';
+      document.getElementById('hudLevel').textContent = profile.level ? ('LV.' + profile.level) : '';
+      document.getElementById('hudTitle').textContent = profile.title || '';
+
+      const avatarStyle = profile.avatarStyle || 'icon_1';
+      document.getElementById('hudAvatarImg').src = `icons/${avatarStyle}.png`;
+    }
+
+    /* 檢查並套用多多益善效果 */
+    function checkMoreTheMerrierOnLogin() {
+      if (currentExamConfig && currentExamConfig.isExamMode) return;
+
+      const slider = document.getElementById('countSlider');
+      const sliderVal = document.getElementById('sliderValue');
+
+      if (isMoreTheMerrierActive()) {
+        const sender = currentUserProfile.moreIsMerrierSender || '某位神秘同學';
+
+        slider.value = 60;
+        sliderVal.textContent = '60 題 (🔒 強制鎖定)';
+        slider.disabled = true;
+        slider.style.pointerEvents = 'none';
+
+        showPendingNotice(
+          '📜 技能生效提醒：多多益善',
+          '🤪',
+          `您受到了來自【<b>${escapeHtml(sender)}</b>】的技能「<b>多多益善</b>」鼓勵！<br><br>` +
+          `📌 <b>限制：</b>本次練習強制鎖定必須選擇 <b>60 題</b>。<br>` +
+          `🔓 <b>解除方式：</b>在日常練習模式下完整完成 60 題作答並交卷，方可解除此效果！`,
+          '我知道了，接受挑戰！'
+        );
+      } else {
+        slider.disabled = false;
+        slider.style.pointerEvents = 'auto';
+        sliderVal.textContent = slider.value + ' 題';
+      }
+    }
+
+    function applyExamConfigUI(config) {
+      const modeInput = document.getElementById('examRoomInput');
+      const modeLabel = document.getElementById('examRoomLabel');
+      const slider = document.getElementById('countSlider');
+      const sliderVal = document.getElementById('sliderValue');
+
+      const festivalBanner = document.getElementById('festivalBanner');
+      if (config.lotteryMultiplier && config.lotteryMultiplier !== 1 && config.lotteryMultiplier > 1) {
+        document.getElementById('festivalMultiplierVal').textContent = config.lotteryMultiplier;
+        festivalBanner.style.display = 'block';
+      } else {
+        festivalBanner.style.display = 'none';
+      }
+
+      if (config.isExamMode) {
+        modeInput.value = config.examName;
+        modeInput.classList.add('exam-active-mode');
+        modeLabel.innerHTML = `🏫 目前模式 <span style="color:#f97316; font-size:0.85rem; font-weight:800;">(🔒 ${escapeHtml(config.targetClass)} 正式測驗進行中)</span>`;
+
+        if (config.questionCount > 0) {
+          slider.value = config.questionCount;
+          sliderVal.textContent = config.questionCount + ' 題';
+          slider.disabled = true;
+          slider.style.pointerEvents = 'none';
+          slider.title = '測驗模式已固定題數，不可更改';
+        }
+      } else {
+        modeInput.value = '日常練習';
+        modeInput.classList.remove('exam-active-mode');
+        modeLabel.innerHTML = '🏫 目前模式';
+
+        if (isMoreTheMerrierActive()) {
+          slider.value = 60;
+          sliderVal.textContent = '60 題 (🔒 強制鎖定)';
+          slider.disabled = true;
+          slider.style.pointerEvents = 'none';
+        } else {
+          slider.disabled = false;
+          slider.style.pointerEvents = 'auto';
+        }
+      }
+    }
+
+    function renderPromotionActivities(activities) {
+      const section = document.getElementById('recentActivitiesSection');
+      const container = document.getElementById('activitiesListContainer');
+      container.innerHTML = '';
+
+      if (!activities || activities.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+
+      activities.forEach(act => {
+        const card = document.createElement('div');
+        card.className = 'activity-card';
+        card.innerHTML = `
+          <div class="activity-title">${escapeHtml(act.title)}</div>
+          <div class="activity-poster-box" title="${act.rulesUrl ? '點擊海報檢視章程詳情' : escapeHtml(act.title)}" ${act.rulesUrl ? `onclick="window.open('${escapeHtml(act.rulesUrl)}', '_blank')"` : ''}>
+            <img src="${escapeHtml(act.posterUrl)}" alt="${escapeHtml(act.title)}" loading="lazy">
+            ${act.rulesUrl ? '<div class="activity-hint">🔗 點擊海報開啟章程</div>' : ''}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      section.style.display = 'block';
+    }
+
+    /* ================= 2. 教師模式控制面板（修復點擊失靈） ================= */
+    function openTeacherControlPanelWindow() {
+      if (!currentUserProfile || !currentUserProfile.isTeacher) {
+        alert('⛔ 存取被拒：您沒有教師組別權限！');
+        return;
+      }
+
+      const panelWin = window.open('', '_blank', 'width=1040,height=880');
+      if (!panelWin) {
+        alert('請允許瀏覽器彈出視窗以檢視「模式控制面板」！');
+        return;
+      }
+
+      const panelHtml = `
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>🎛️ AIMathQuest 多班別模式控制面板</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+    body { background: #0b0f19; color: #f1f5f9; padding: 24px; min-height: 100vh; }
+    .panel-container { max-width: 980px; margin: 0 auto; background: #111827; border: 1.5px solid #1f2937; border-radius: 20px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #1f2937; padding-bottom: 18px; margin-bottom: 24px; }
+    .panel-title { font-size: 1.55rem; font-weight: 800; color: #38bdf8; }
+    .panel-badge { font-size: 0.8rem; background: #0369a1; color: #e0f2fe; padding: 4px 10px; border-radius: 999px; font-weight: 800; }
+    .form-item { margin-bottom: 24px; }
+    .form-label { display: block; font-size: 0.95rem; font-weight: 700; color: #94a3b8; margin-bottom: 8px; }
+    .input-dark { width: 100%; background: #1e293b; border: 1.5px solid #334155; color: #f8fafc; padding: 10px 14px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; outline: none; }
+    .input-dark:focus { border-color: #38bdf8; }
+    .class-card { background: #1e293b; border: 1.5px solid #334155; border-radius: 16px; padding: 18px; margin-bottom: 16px; position: relative; }
+    .class-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+    .class-title { font-size: 1.15rem; font-weight: 800; color: #38bdf8; }
+    .ios-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+    .ios-switch input { opacity: 0; width: 0; height: 0; }
+    .slider-toggle { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .3s; border-radius: 34px; }
+    .slider-toggle:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; }
+    input:checked + .slider-toggle { background-color: #10b981; }
+    input:checked + .slider-toggle:before { transform: translateX(22px); }
+    .cats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin-top: 10px; }
+    /* 修正後的課題按鈕樣式：直覺、零延遲點擊 */
+    .cat-item { display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px 12px; background: #0f172a; border: 1.5px solid #334155; border-radius: 8px; font-size: 0.88rem; font-weight: 700; color: #cbd5e1; cursor: pointer; transition: all 0.15s ease; }
+    .cat-item:hover { border-color: #38bdf8; background: #1e293b; }
+    .cat-item.checked { border-color: #38bdf8; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 900; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25); }
+    .btn-add-class { background: #334155; color: #38bdf8; border: 1.5px dashed #38bdf8; border-radius: 12px; padding: 12px; font-weight: 800; cursor: pointer; width: 100%; transition: all 0.2s; }
+    .btn-add-class:hover { background: rgba(56, 189, 248, 0.1); }
+    .btn-del-class { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+    .btn-submit-panel { width: 100%; margin-top: 24px; padding: 16px; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff; border: none; border-radius: 14px; font-size: 1.15rem; font-weight: 800; cursor: pointer; box-shadow: 0 6px 20px rgba(2, 132, 199, 0.35); }
+    .loader-panel { text-align: center; padding: 60px 20px; font-weight: 800; color: #38bdf8; font-size: 1.2rem; }
+  </style>
+</head>
+<body>
+  <div class="panel-container" id="panelApp">
+    <div class="loader-panel" id="panelLoader">🔒 安全校驗與載入設定中...</div>
+  </div>
+
+  <script>
+    let panelData = null;
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const response = await fetch("${GAS_API_URL}", {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getTeacherPanelData', token: "${userAuthToken}" })
+        });
+        const res = await response.json();
+        if (res.status !== 'success') {
+          document.getElementById('panelApp').innerHTML = '<div style="color:#ef4444; text-align:center; padding:50px; font-size:1.3rem; font-weight:800;">⛔ ' + res.message + '</div>';
+          setTimeout(() => window.close(), 3000);
+          return;
+        }
+
+        panelData = res.data;
+        renderPanelUI();
+      } catch (err) {
+        document.getElementById('panelApp').innerHTML = '<div style="color:#ef4444; text-align:center; padding:50px;">連線異常：' + err.message + '</div>';
+      }
+    });
+
+    function renderPanelUI() {
+      const container = document.getElementById('panelApp');
+      container.innerHTML = \`
+        <div class="panel-header">
+          <div class="panel-title">🎛️ 多班別測驗模式控制中心</div>
+          <div class="panel-badge">已通過後端安全校驗</div>
+        </div>
+
+        <div class="form-item">
+          <label class="form-label">🎁 慶典專用抽獎加乘倍率 (A2 格子全域設定)</label>
+          <input type="number" id="txtMultiplier" class="input-dark" style="max-width:200px;" min="1" max="100" value="\${panelData.lotteryMultiplier}">
+        </div>
+
+        <div class="form-item">
+          <label class="form-label" style="font-size:1.05rem; color:#f8fafc; margin-bottom:12px;">🏫 各班別獨立測驗配置</label>
+          <div id="classListContainer"></div>
+          <button class="btn-add-class" onclick="addNewClassConfig()">➕ 新增一個受測班別</button>
+        </div>
+
+        <button class="btn-submit-panel" onclick="saveAllPanelSettings()">⚡ 立即儲存並同步至試算表</button>
+      \`;
+
+      renderClassCards();
+    }
+
+    function renderClassCards() {
+      const box = document.getElementById('classListContainer');
+      box.innerHTML = '';
+
+      if (!panelData.classConfigs || panelData.classConfigs.length === 0) {
+        box.innerHTML = '<div style="color:#64748b; margin-bottom:16px;">目前未設定任何班別測驗，全校學生處於日常練習模式。</div>';
+        return;
+      }
+
+      panelData.classConfigs.forEach((cfg, idx) => {
+        const card = document.createElement('div');
+        card.className = 'class-card';
+        card.innerHTML = \`
+          <div class="class-card-header">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span class="class-title">班別 #\${idx + 1}</span>
+              <label class="ios-switch">
+                <input type="checkbox" id="chkOpen_\${idx}" \${cfg.isOpen ? 'checked' : ''} onchange="panelData.classConfigs[\${idx}].isOpen = this.checked">
+                <span class="slider-toggle"></span>
+              </label>
+              <span style="font-size:0.9rem; font-weight:700; color:\${cfg.isOpen ? '#10b981' : '#64748b'};">
+                \${cfg.isOpen ? '🟢 測驗開啟 (1)' : '⚪ 關閉 (0)'}
+              </span>
+            </div>
+            <button class="btn-del-class" onclick="deleteClassConfig(\${idx})">刪除班別</button>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+            <div>
+              <label class="form-label">指定班別 (例如 S1A)</label>
+              <input type="text" class="input-dark" value="\${cfg.className || ''}" placeholder="如 S1A" oninput="panelData.classConfigs[\${idx}].className = this.value.toUpperCase()">
+            </div>
+            <div>
+              <label class="form-label">測驗名稱</label>
+              <input type="text" class="input-dark" value="\${cfg.examName || ''}" placeholder="如 第一段AI測評" oninput="panelData.classConfigs[\${idx}].examName = this.value">
+            </div>
+            <div>
+              <label class="form-label">題目數量</label>
+              <input type="number" class="input-dark" min="10" max="60" step="5" value="\${cfg.questionCount || 30}" oninput="panelData.classConfigs[\${idx}].questionCount = parseInt(this.value, 10)">
+            </div>
+          </div>
+
+          <label class="form-label">📚 指定鎖定課題 (點選切換勾選狀態)</label>
+          <div class="cats-grid">
+            \${panelData.allCategories.map(cat => {
+              const isChecked = (cfg.selectedCategories || []).includes(cat);
+              const escapedCat = cat.replace(/'/g, "\\\\'");
+              return \`
+                <div class="cat-item \${isChecked ? 'checked' : ''}" onclick="toggleCatSelection(\${idx}, '\${escapedCat}', this)">
+                  \${cat}
+                </div>
+              \`;
+            }).join('')}
+          </div>
+        \`;
+        box.appendChild(card);
+      });
+    }
+
+    /* 修復：純粹、直接的同步點選事件，不再有任何標籤雙重觸發與延遲 bug */
+    function toggleCatSelection(classIdx, catName, elem) {
+      const cfg = panelData.classConfigs[classIdx];
+      if (!cfg.selectedCategories) cfg.selectedCategories = [];
+      const pos = cfg.selectedCategories.indexOf(catName);
+      if (pos === -1) {
+        cfg.selectedCategories.push(catName);
+        elem.classList.add('checked');
+      } else {
+        cfg.selectedCategories.splice(pos, 1);
+        elem.classList.remove('checked');
+      }
+    }
+
+    function addNewClassConfig() {
+      panelData.classConfigs.push({
+        isOpen: true,
+        className: 'S1A',
+        examName: '數學AI單元測驗',
+        questionCount: 30,
+        selectedCategories: panelData.allCategories.slice(0, 1)
+      });
+      renderClassCards();
+    }
+
+    function deleteClassConfig(idx) {
+      panelData.classConfigs.splice(idx, 1);
+      renderClassCards();
+    }
+
+    async function saveAllPanelSettings() {
+      const multiplier = parseFloat(document.getElementById('txtMultiplier').value) || 1;
+      const btn = document.querySelector('.btn-submit-panel');
+      btn.textContent = '⏳ 正在同步試算表...';
+      btn.disabled = true;
+
+      try {
+        const response = await fetch("${GAS_API_URL}", {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'updateCustomModeConfig',
+            token: "${userAuthToken}",
+            data: {
+              lotteryMultiplier: multiplier,
+              classConfigs: panelData.classConfigs
+            }
+          })
+        });
+        const res = await response.json();
+        if (res.status === 'success') {
+          alert('🎉 ' + res.message);
+          if (window.opener) window.opener.location.reload();
+        } else {
+          alert('儲存失敗：' + res.message);
+        }
+      } catch (e) {
+        alert('網路傳輸失敗：' + e.message);
+      } finally {
+        btn.textContent = '⚡ 立即儲存並同步至試算表';
+        btn.disabled = false;
+      }
+    }
+  <\/script>
+</body>
+</html>
+      `;
+
+      panelWin.document.open();
+      panelWin.document.write(panelHtml);
+      panelWin.document.close();
+    }
+
+    /* ================= 3. 個人檔案設定 ================= */
+    function openProfileModal(isMandatory = false) {
+      const modal = document.getElementById('profileModal');
+      const cancelBtn = document.getElementById('btnCancelProfile');
+      const titleElem = document.getElementById('modalTitle');
+      const descElem = document.getElementById('modalDesc');
+
+      if (isMandatory) {
+        titleElem.textContent = '🎉 歡迎首次登入 AIMathQuest！';
+        descElem.textContent = '請先設定您的自訂暱稱與頭像樣式以開始探索！';
+        cancelBtn.style.display = 'none';
+      } else {
+        titleElem.textContent = '🎨 設定個人冒險檔案';
+        descElem.textContent = '自訂專屬暱稱與頭像樣式，展現您的學習風采！';
+        cancelBtn.style.display = 'block';
+      }
+
+      document.getElementById('inputModalNickname').value = currentUserProfile.nickname || '';
+      selectedAvatarStyle = currentUserProfile.avatarStyle || 'icon_1';
+
+      renderLocalAvatarMatrix();
+      modal.style.display = 'flex';
+    }
+
+    function closeProfileModal() {
+      document.getElementById('profileModal').style.display = 'none';
+    }
+
+    function renderLocalAvatarMatrix() {
+      const container = document.getElementById('avatarMatrixContainer');
+      container.innerHTML = '';
+
+      for (let i = 1; i <= 20; i++) {
+        const iconKey = `icon_${i}`;
+        const item = document.createElement('div');
+        item.className = 'avatar-matrix-item' + (iconKey === selectedAvatarStyle ? ' selected' : '');
+        item.title = `頭像 ${i}`;
+
+        const img = document.createElement('img');
+        img.src = `icons/${iconKey}.png`;
+        img.alt = iconKey;
+        img.loading = 'lazy';
+        item.appendChild(img);
+
+        item.addEventListener('click', () => {
+          container.querySelectorAll('.avatar-matrix-item').forEach(el => el.classList.remove('selected'));
+          item.classList.add('selected');
+          selectedAvatarStyle = iconKey;
+        });
+
+        container.appendChild(item);
+      }
+    }
+
+    async function handleConfirmProfileSave() {
+      const newNick = document.getElementById('inputModalNickname').value.trim();
+      if (!newNick) {
+        alert('請輸入有效暱稱！');
+        document.getElementById('inputModalNickname').focus();
+        return;
+      }
+
+      showLoading(true, '💾 正在儲存個人檔案...');
+      try {
+        const res = await callGasApi('updateProfile', {
+          nickname: newNick,
+          avatarStyle: selectedAvatarStyle
+        });
+        showLoading(false);
+
+        currentUserProfile = res.userProfile;
+        updateHudUI(currentUserProfile);
+        closeProfileModal();
+
+      } catch (err) {
+        showLoading(false);
+        alert('儲存失敗：' + err.message);
+      }
+    }
+
+    /* ================= 4. 防作弊即時記錄 ================= */
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && isQuizActive && !isViolationModalOpen) {
+        recordViolation('切換瀏覽器分頁或視窗最小化');
+      }
+    });
+
+    window.addEventListener('blur', () => {
+      if (isQuizActive && !isViolationModalOpen) {
+        recordViolation('離開當前作答視窗');
+      }
+    });
+
+    function recordViolation(reason) {
+      isViolationModalOpen = true;
+      violationCount++;
+      const timeStr = new Date().toLocaleTimeString();
+      const logText = `[${timeStr}] ${reason}`;
+      violationLogs.push(logText);
+
+      logInstantViolationToSheet(logText);
+
+      const msgBox = document.getElementById('violationModalMsg');
+      msgBox.innerHTML = `
+        ⚠️ <b>異常操作：</b>${reason}<br>
+        ⚠️ <b>累計違規：</b>第 <b style="color:#b91c1c; font-size:1.15rem;">${violationCount}</b> 次<br>
+        <span style="font-size:0.85rem; color:#64748b; display:inline-block; margin-top:8px;">
+          請注意：違規行為已即時登記於考室日誌當中，切勿離開作答畫面！
+        </span>
+      `;
+
+      document.getElementById('violationModal').style.display = 'flex';
+    }
+
+    function logInstantViolationToSheet(logText) {
+      const mode = document.getElementById('examRoomInput').value.trim() || '日常練習';
+      callGasApi('logInstantViolation', {
+        mode: mode,
+        violationReason: logText
+      }).catch(err => {
+        console.warn('即時考室記錄同步失敗:', err);
+      });
+    }
+
+    function dismissViolationModal() {
+      document.getElementById('violationModal').style.display = 'none';
+      setTimeout(() => { isViolationModalOpen = false; }, 350);
+    }
+
+    /* ================= 5. 題庫與抽題 ================= */
+    window.addEventListener('DOMContentLoaded', () => {
+      const slider = document.getElementById('countSlider');
+      const sliderVal = document.getElementById('sliderValue');
+      
+      slider.addEventListener('input', (e) => {
+        if (isMoreTheMerrierActive()) {
+          e.target.value = 60;
+          sliderVal.textContent = '60 題 (🔒 強制鎖定)';
+          return;
+        }
+        sliderVal.textContent = e.target.value + ' 題';
+      });
+
+      document.addEventListener('contextmenu', e => e.preventDefault());
+      document.addEventListener('keydown', e => {
+        if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.ctrlKey && e.keyCode === 85)) {
+          e.preventDefault();
+        }
+      });
+    });
+
+    function renderBackendGroupedCategories(groups) {
+      const container = document.getElementById('categoryGroupContainer');
+      container.innerHTML = '';
+
+      if (!groups || groups.length === 0) {
+        container.innerHTML = '<div style="color:var(--danger); font-weight: bold;">未偵測到題目分頁！</div>';
+        return;
+      }
+
+      let firstAssigned = false;
+      groups.forEach(group => {
+        const block = createGroupBlock(group.id, group.title, group.subtitle, group.items, !firstAssigned);
+        if (!firstAssigned) firstAssigned = true;
+        container.appendChild(block);
+      });
+    }
+
+    function createGroupBlock(groupId, title, subtitle, items, shouldSelectFirst) {
+      const block = document.createElement('div');
+      block.className = 'group-block';
+      block.id = `group_${groupId}`;
+
+      const isExam = currentExamConfig && currentExamConfig.isExamMode;
+      const lockedList = isExam ? (currentExamConfig.lockedCategories || []) : [];
+
+      const header = document.createElement('div');
+      header.className = 'group-header';
+      header.innerHTML = `
+        <div class="group-title-box">
+          <span class="group-title">${title}</span>
+          <span class="group-subtitle">${subtitle}</span>
+        </div>
+        <button type="button" class="btn-group-toggle" ${isExam ? 'disabled' : ''} onclick="toggleSelectAllGroup('${groupId}')">全選 / 取消</button>
+      `;
+      block.appendChild(header);
+
+      const grid = document.createElement('div');
+      grid.className = 'group-items-grid';
+
+      items.forEach((catName, idx) => {
+        const isTeacherLocked = isExam && lockedList.includes(catName);
+        const isExamForbidden = isExam && !lockedList.includes(catName);
+        const isDefault = isTeacherLocked || (!isExam && shouldSelectFirst && idx === 0);
+
+        const chip = document.createElement('label');
+        let chipClass = 'category-chip';
+        if (isDefault) chipClass += ' active';
+        if (isTeacherLocked) chipClass += ' locked-category';
+        if (isExamForbidden) chipClass += ' exam-forbidden';
+        chip.className = chipClass;
+
+        chip.innerHTML = `
+          <input type="checkbox" name="catCheck" data-group="${groupId}" value="${escapeHtml(catName)}" 
+                 ${isDefault ? 'checked' : ''} 
+                 ${isTeacherLocked ? 'data-locked="true"' : ''}
+                 ${isExamForbidden ? 'disabled' : ''}>
+          <span>${isTeacherLocked ? '🔒 ' : ''}${escapeHtml(catName)}</span>
+        `;
+
+        chip.addEventListener('click', (e) => {
+          if (isTeacherLocked || isExamForbidden) {
+            e.preventDefault();
+            return false;
+          }
+          setTimeout(() => {
+            const isChecked = chip.querySelector('input').checked;
+            chip.classList.toggle('active', isChecked);
+          }, 10);
+        });
+
+        grid.appendChild(chip);
+      });
+
+      block.appendChild(grid);
+      return block;
+    }
+
+    function toggleSelectAllGroup(groupId) {
+      if (currentExamConfig && currentExamConfig.isExamMode) return;
+
+      const groupBlock = document.getElementById(`group_${groupId}`);
+      if (!groupBlock) return;
+
+      const inputs = groupBlock.querySelectorAll('input[type="checkbox"]:not(:disabled)');
+      const allChecked = Array.from(inputs).every(i => i.checked);
+
+      inputs.forEach(input => {
+        if (input.dataset.locked === 'true') {
+          input.checked = true;
+          return;
+        }
+        input.checked = !allChecked;
+        const label = input.closest('.category-chip');
+        if (label) label.classList.toggle('active', !allChecked);
+      });
+    }
+
+    function getOptionText(opt) {
+      if (opt === null || opt === undefined) return '';
+      if (typeof opt === 'object') {
+        return String(opt.text || opt.value || opt.name || opt.label || Object.values(opt)[0] || '');
+      }
+      return String(opt);
+    }
+
+    async function handleStartQuiz() {
+      const checkedBoxes = document.querySelectorAll('input[name="catCheck"]:checked');
+      const selectedCats = Array.from(checkedBoxes).map(cb => cb.value);
+      if (selectedCats.length === 0) {
+        alert('請至少勾選一個練習範疇！');
+        return;
+      }
+
+      let totalCount = parseInt(document.getElementById('countSlider').value, 10);
+      if (isMoreTheMerrierActive()) {
+        totalCount = 60;
+      }
+
+      showLoading(true, '⚡ 正在為您智慧配置考卷中...');
+
+      try {
+        const res = await callGasApi('generateQuiz', { selectedCategories: selectedCats, totalCount: totalCount });
+        showLoading(false);
+        currentQuizData = res.questions;
+        
+        violationCount = 0;
+        violationLogs.length = 0;
+        isQuizActive = true;
+        isViolationModalOpen = false;
+
+        renderQuiz(res.questions);
+      } catch (err) {
+        showLoading(false);
+        alert('生成題目失敗：' + err.message);
+      }
+    }
+
+    function renderQuiz(questions) {
+      const container = document.getElementById('questionsScrollContainer');
+      container.innerHTML = '';
+      Object.keys(userAnswers).forEach(key => delete userAnswers[key]);
+
+      updateProgressBar(0, questions.length);
+
+      const letters = ['A', 'B', 'C', 'D'];
+      questions.forEach((q, qIndex) => {
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `qCard_${qIndex}`;
+
+        let optionsHtml = '';
+        q.options.forEach((optRaw, optIdx) => {
+          const letter = letters[optIdx];
+          const optText = getOptionText(optRaw);
+
+          optionsHtml += `
+            <div class="option-item" onclick="selectOption(${qIndex}, '${letter}', this)">
+              <div class="option-circle">${letter}</div>
+              <div class="option-text">${escapeHtml(optText)}</div>
+            </div>
+          `;
+        });
+
+        card.innerHTML = `
+          <div class="q-meta">
+            <div class="q-tags-group">
+              <span class="q-category-tag">📂 ${escapeHtml(q.category)}</span>
+              <span class="q-ability-tag">🎯 ${escapeHtml(q.ability || '綜合素養')}</span>
+            </div>
+            <span class="q-counter">第 ${qIndex + 1} 題 / 共 ${questions.length} 題</span>
+          </div>
+          <div class="q-content">${formatPythonQuestion(q.question)}</div>
+          <div class="options-list">${optionsHtml}</div>
+        `;
+        container.appendChild(card);
+      });
+
+      document.getElementById('setupView').style.display = 'none';
+      document.getElementById('mistakeBankView').style.display = 'none';
+      document.getElementById('topicStudyView').style.display = 'none';
+      document.getElementById('quizView').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function selectOption(qIndex, letter, elem) {
+      userAnswers[qIndex] = letter;
+      const card = document.getElementById(`qCard_${qIndex}`);
+      card.querySelectorAll('.option-item').forEach(item => item.classList.remove('selected'));
+      elem.classList.add('selected');
+
+      const answeredCount = Object.keys(userAnswers).length;
+      updateProgressBar(answeredCount, currentQuizData.length);
+    }
+
+    function updateProgressBar(answered, total) {
+      const percent = total > 0 ? Math.round((answered / total) * 100) : 0;
+      document.getElementById('progressStat').textContent = `${answered} / ${total} 題 (${percent}%)`;
+      document.getElementById('energyBarFill').style.width = `${percent}%`;
+    }
+
+    /* ================= 6. 個人錯題庫重溫 ================= */
+    async function openMistakeBankView() {
+      document.getElementById('setupView').style.display = 'none';
+      document.getElementById('topicStudyView').style.display = 'none';
+      document.getElementById('mistakeBankView').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      showLoading(true, '📖 正在檢索歷史個人錯題記錄...');
+      try {
+        const res = await callGasApi('getMistakeBank');
+        showLoading(false);
+        currentMistakeBankData = res.data;
+        renderMistakeCards(res.data);
+      } catch (err) {
+        showLoading(false);
+        alert('加載個人錯題庫失敗：' + err.message);
+      }
+    }
+
+    function closeMistakeBankView() {
+      document.getElementById('mistakeBankView').style.display = 'none';
+      document.getElementById('setupView').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      checkMoreTheMerrierOnLogin();
+    }
+
+    function renderMistakeCards(data) {
+      const container = document.getElementById('mistakeCardsContainer');
+      container.innerHTML = '';
+
+      if (!data || !data.questions || data.questions.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding: 40px 20px; color: var(--success);">
+            <div style="font-size:3.5rem; margin-bottom:12px;">🌟</div>
+            <h3 style="font-size:1.3rem; font-weight:800;">暫無錯題記錄！</h3>
+            <p style="color:var(--text-muted); font-size:0.95rem; margin-top:6px;">您目前的學習掌握度極佳，繼續保持！</p>
+          </div>
+        `;
+        return;
+      }
+
+      const letters = ['A', 'B', 'C', 'D'];
+      data.questions.forEach((q) => {
+        const card = document.createElement('div');
+        card.className = 'wrong-item';
+
+        let optionsHtml = '<div class="review-options-container">';
+        letters.forEach((letter, oIdx) => {
+          const optText = getOptionText(q.options ? q.options[oIdx] : '');
+          const isCorrect = (letter === q.correctAnswer);
+          let optClass = 'review-opt';
+          let flagHtml = '';
+
+          if (isCorrect) {
+            optClass += ' opt-correct';
+            flagHtml = '<span class="review-flag flag-correct">✅ 正確答案</span>';
+          }
+
+          optionsHtml += `
+            <div class="${optClass}">
+              <div class="review-circle">${letter}</div>
+              <div class="review-text">${escapeHtml(optText)}</div>
+              ${flagHtml}
+            </div>
+          `;
+        });
+        optionsHtml += '</div>';
+
+        // 嚴格消除標籤與變數間的多餘空格，防止 pre-wrap 導致縮排
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-weight: 700; color: var(--text-muted); font-size: 0.85rem;">[${escapeHtml(q.category)}] 題號：${escapeHtml(q.id)}</span>
+            <span class="q-ability-tag">🎯 ${escapeHtml(q.ability || '綜合素養')}</span>
+          </div>
+          <div class="q-content" style="font-size: 1.05rem; margin-bottom: 8px;">${formatPythonQuestion(q.question)}</div>
+          ${optionsHtml}
+          <div class="explanation-container">💡 <b>題目解析：</b><br>${escapeHtml((q.explanation || '暫無解析說明').trim())}</div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function openResetMistakeModal() {
+      if (!currentMistakeBankData || !currentMistakeBankData.categories || currentMistakeBankData.categories.length === 0) {
+        alert('目前沒有任何課題存在錯題，無需重置！');
+        return;
+      }
+
+      const grid = document.getElementById('resetMistakeCategoryGrid');
+      grid.innerHTML = '';
+
+      currentMistakeBankData.categories.forEach(cat => {
+        const chip = document.createElement('label');
+        chip.className = 'category-chip active';
+        chip.innerHTML = `
+          <input type="checkbox" name="resetCatCheck" value="${escapeHtml(cat)}" checked>
+          <span>${escapeHtml(cat)}</span>
+        `;
+        chip.addEventListener('click', () => {
+          setTimeout(() => {
+            const isChecked = chip.querySelector('input').checked;
+            chip.classList.toggle('active', isChecked);
+          }, 10);
+        });
+        grid.appendChild(chip);
+      });
+
+      document.getElementById('resetMistakeModal').style.display = 'flex';
+    }
+
+    function closeResetMistakeModal() {
+      document.getElementById('resetMistakeModal').style.display = 'none';
+    }
+
+    function toggleSelectAllResetMistakes() {
+      const inputs = document.querySelectorAll('input[name="resetCatCheck"]');
+      const allChecked = Array.from(inputs).every(i => i.checked);
+      inputs.forEach(i => {
+        i.checked = !allChecked;
+        const label = i.closest('.category-chip');
+        if (label) label.classList.toggle('active', !allChecked);
+      });
+    }
+
+    async function handleConfirmResetMistakes() {
+      const checkedBoxes = document.querySelectorAll('input[name="resetCatCheck"]:checked');
+      const selectedCats = Array.from(checkedBoxes).map(cb => cb.value);
+
+      if (selectedCats.length === 0) {
+        alert('請至少勾選一個欲重置的課題！');
+        return;
+      }
+
+      if (!confirm(`確定要清除選定的 ${selectedCats.length} 個課題的錯題記錄嗎？`)) {
+        return;
+      }
+
+      showLoading(true, '🔄 正在同步重置錯題記錄...');
+      try {
+        const res = await callGasApi('resetMistakeBank', { categories: selectedCats });
+        showLoading(false);
+        alert(res.message || '重置成功！');
+        closeResetMistakeModal();
+        openMistakeBankView();
+      } catch (err) {
+        showLoading(false);
+        alert('重置失敗：' + err.message);
+      }
+    }
+
+    /* ================= 7. 學習特定課題 ================= */
+    function openTopicSelectModal() {
+      const container = document.getElementById('studyTopicMatrixContainer');
+      container.innerHTML = '';
+      selectedStudyCategory = '';
+
+      const allAvailableCats = [];
+      if (cachedCategoryGroups && cachedCategoryGroups.length > 0) {
+        cachedCategoryGroups.forEach(grp => {
+          if (grp.items) {
+            grp.items.forEach(c => {
+              if (!allAvailableCats.includes(c)) allAvailableCats.push(c);
+            });
+          }
+        });
+      }
+
+      if (allAvailableCats.length === 0) {
+        alert('目前未載入任何課題！');
+        return;
+      }
+
+      selectedStudyCategory = allAvailableCats[0];
+
+      allAvailableCats.forEach(catName => {
+        const chip = document.createElement('div');
+        chip.className = 'study-topic-chip' + (catName === selectedStudyCategory ? ' selected' : '');
+        chip.innerHTML = `
+          <div class="study-radio-icon">
+            <div class="study-radio-dot"></div>
+          </div>
+          <span>${escapeHtml(catName)}</span>
+        `;
+
+        chip.addEventListener('click', () => {
+          container.querySelectorAll('.study-topic-chip').forEach(el => el.classList.remove('selected'));
+          chip.classList.add('selected');
+          selectedStudyCategory = catName;
+        });
+
+        container.appendChild(chip);
+      });
+
+      document.getElementById('topicSelectModal').style.display = 'flex';
+    }
+
+    function closeTopicSelectModal() {
+      document.getElementById('topicSelectModal').style.display = 'none';
+    }
+
+    async function handleConfirmTopicStudy() {
+      if (!selectedStudyCategory) {
+        alert('請點選一個欲研讀的課題！');
+        return;
+      }
+
+      closeTopicSelectModal();
+      showLoading(true, `📚 正在載入【${selectedStudyCategory}】題目與解答詳解...`);
+
+      try {
+        const res = await callGasApi('getTopicStudyData', { category: selectedStudyCategory });
+        showLoading(false);
+        renderTopicStudyView(res.category, res.questions || []);
+      } catch (err) {
+        showLoading(false);
+        alert('載入課題失敗：' + err.message);
+      }
+    }
+
+    function renderTopicStudyView(categoryName, questions) {
+      document.getElementById('setupView').style.display = 'none';
+      document.getElementById('mistakeBankView').style.display = 'none';
+      document.getElementById('quizView').style.display = 'none';
+      document.getElementById('resultView').style.display = 'none';
+
+      document.getElementById('topicStudyTitle').textContent = `課題研讀：${categoryName}`;
+      document.getElementById('topicStudyCountBadge').textContent = `共 ${questions.length} 題`;
+
+      const container = document.getElementById('topicStudyCardsContainer');
+      container.innerHTML = '';
+
+      if (!questions || questions.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+            ⚠️ 本課題暫無題目或正在整理中！
+          </div>
+        `;
+      } else {
+        const letters = ['A', 'B', 'C', 'D'];
+        questions.forEach((q, idx) => {
+          const card = document.createElement('div');
+          card.className = 'study-item-card';
+
+          let optionsHtml = '<div class="review-options-container">';
+          letters.forEach((letter, oIdx) => {
+            const optText = getOptionText(q.options ? q.options[oIdx] : '');
+            const isCorrect = (letter === q.correctAnswer);
+            let optClass = 'review-opt';
+            let flagHtml = '';
+
+            if (isCorrect) {
+              optClass += ' opt-correct';
+              flagHtml = '<span class="review-flag flag-correct">✅ 正確答案</span>';
+            }
+
+            optionsHtml += `
+              <div class="${optClass}">
+                <div class="review-circle">${letter}</div>
+                <div class="review-text">${escapeHtml(optText)}</div>
+                ${flagHtml}
+              </div>
+            `;
+          });
+          optionsHtml += '</div>';
+
+          // 嚴格消除標籤與變數間的多餘空格，防止 pre-wrap 導致縮排
+          card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: 800; color: var(--study-theme); font-size: 0.95rem;">
+                第 ${idx + 1} 題（編號：${escapeHtml(q.id)}）
+              </span>
+              <div style="display:flex; gap:6px;">
+                <span class="q-category-tag" style="background: #ccfbf1; color: var(--study-hover);">📂 ${escapeHtml(q.category)}</span>
+                <span class="q-ability-tag">🎯 ${escapeHtml(q.ability || '綜合素養')}</span>
+              </div>
+            </div>
+            <div class="q-content" style="font-size: 1.08rem; margin-bottom: 12px;">${formatPythonQuestion(q.question)}</div>
+            ${optionsHtml}
+            <div class="explanation-container" style="background: #f0fdfa; border-left-color: var(--study-theme); color: #134e4a; margin-top: 14px;">💡 <b>標準解析說明：</b><br>${escapeHtml((q.explanation || '暫無解析說明').trim())}</div>
+          `;
+
+          container.appendChild(card);
+        });
+      }
+
+      document.getElementById('topicStudyView').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function closeTopicStudyView() {
+      document.getElementById('topicStudyView').style.display = 'none';
+      document.getElementById('setupView').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      checkMoreTheMerrierOnLogin();
+    }
+
+    /* ================= 8. 交卷、評分與雷達圖繪製 ================= */
+    async function handleSubmitQuizWithRetry() {
+      const total = currentQuizData.length;
+      const answeredCount = Object.keys(userAnswers).length;
+
+      if (answeredCount < total) {
+        const unanswered = total - answeredCount;
+        if (!confirm(`尚有 ${unanswered} 題未作答，確定要現在提交嗎？`)) {
+          for (let i = 0; i < total; i++) {
+            if (!userAnswers[i]) {
+              document.getElementById(`qCard_${i}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+              break;
+            }
+          }
+          return;
+        }
+      }
+
+      isQuizActive = false;
+      showLoading(true, '📊 系統正在安全評分，並進行幸運大抽獎...');
+
+      const payload = {
+        examRoom: document.getElementById('examRoomInput').value.trim() || '日常練習',
+        violationCount: violationCount,
+        violationLogs: violationLogs.join('；') || '無異常',
+        answers: currentQuizData.map((q, idx) => ({
+          sheetName: q.sheetName,
+          row: q.row,
+          choice: userAnswers[idx] || ''
+        }))
+      };
+
+      localStorage.setItem('AIMATH_UNSUBMITTED_BACKUP', JSON.stringify(payload));
+
+      let maxRetries = 3;
+      let delay = 2000;
+      let lastError = null;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          if (attempt > 1) {
+            showLoading(true, `伺服器繁忙，正在進行第 ${attempt} 次重試連接...`);
+          }
+          const res = await callGasApi('submitQuiz', { payload: payload });
+          localStorage.removeItem('AIMATH_UNSUBMITTED_BACKUP');
+          renderResult(res.result);
+          startPostSubmissionPipeline(res.result);
+          return;
+        } catch (err) {
+          lastError = err;
+          if (attempt < maxRetries) {
+            await new Promise(r => setTimeout(r, delay));
+            delay *= 2;
+          }
+        }
+      }
+
+      showLoading(false);
+      alert('【交卷提醒】當前網絡較繁忙，答案已保存在本地！請再次重試交卷，切勿關閉網頁。錯誤：' + lastError.message);
+    }
+
+    function renderResult(result) {
+      showLoading(false);
+
+      document.getElementById('quizView').style.display = 'none';
+      document.getElementById('resultView').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      fireCampusConfetti();
+
+      const meteorBanner = document.getElementById('meteorExpBanner');
+      if (result.meteorShowerApplied) {
+        meteorBanner.style.display = 'inline-block';
+      } else {
+        meteorBanner.style.display = 'none';
+      }
+
+      animateValue('resCorrect', 0, result.correctCount, 1000);
+      document.getElementById('resTotalLabel').textContent = `/ ${result.totalQuestions} 題`;
+
+      const accuracy = result.totalQuestions > 0 
+        ? Math.round((result.correctCount / result.totalQuestions) * 100) 
+        : 0;
+      document.getElementById('resAccuracy').textContent = accuracy + '%';
+      animateValue('resAllTimeCorrect', 0, result.userAllTimeCorrect, 1200);
+
+      const titleElem = document.getElementById('resultTitle');
+      if (accuracy === 100) {
+        titleElem.textContent = '🌟 滿分完美通關！表現卓越！';
+      } else if (accuracy >= 80) {
+        titleElem.textContent = '👏 實力優異！掌握得非常扎實！';
+      } else if (accuracy >= 60) {
+        titleElem.textContent = '👍 成績良好！持續保持！';
+      } else {
+        titleElem.textContent = '💪 還有進步空間，繼續加油！';
+      }
+
+      // 繪製大尺寸雷達圖（無閃爍、文字完整、獨佔一行）
+      renderAbilityRadarChart(result.abilityRadarData);
+
+      const wrongContainer = document.getElementById('wrongListContainer');
+      wrongContainer.innerHTML = '';
+
+      if (result.wrongQuestions.length === 0) {
+        wrongContainer.innerHTML = `
+          <div style="text-align: center; padding: 20px; color: var(--success); font-weight: 800; font-size: 1.1rem;">
+            🎉 太厲害了！本次練習全部答對，沒有錯題！
+          </div>
+        `;
+      } else {
+        const letters = ['A', 'B', 'C', 'D'];
+        result.wrongQuestions.forEach((item) => {
+          const card = document.createElement('div');
+          card.className = 'wrong-item';
+
+          let optionsReviewHtml = '<div class="review-options-container">';
+          letters.forEach((letter, optIdx) => {
+            const optText = getOptionText(item.options ? item.options[optIdx] : '');
+            const isUserChoice = (letter === item.userChoice);
+            const isCorrect = (letter === item.correctAnswer);
+
+            let optClass = 'review-opt';
+            let flagHtml = '';
+
+            if (isCorrect) {
+              optClass += ' opt-correct';
+              flagHtml = '<span class="review-flag flag-correct">✅ 正確答案</span>';
+            } else if (isUserChoice) {
+              optClass += ' opt-user-wrong';
+              flagHtml = '<span class="review-flag flag-wrong">❌ 您的選擇</span>';
+            }
+
+            optionsReviewHtml += `
+              <div class="${optClass}">
+                <div class="review-circle">${letter}</div>
+                <div class="review-text">${escapeHtml(optText)}</div>
+                ${flagHtml}
+              </div>
+            `;
+          });
+          optionsReviewHtml += '</div>';
+
+          // 嚴格消除標籤與變數間的多餘空格，防止 pre-wrap 導致縮排
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-weight: 700; color: var(--text-muted); font-size: 0.85rem;">[${escapeHtml(item.category)}] 題號：${escapeHtml(item.id)}</span>
+              <span class="q-ability-tag">🎯 ${escapeHtml(item.ability || '綜合素養')}</span>
+            </div>
+            <div class="q-content" style="font-size: 1.05rem; margin-bottom: 8px;">${formatPythonQuestion(item.question)}</div>
+            ${optionsReviewHtml}
+            <div class="explanation-container">💡 <b>題目解析：</b><br>${escapeHtml((item.explanation || '暫無解析說明').trim())}</div>
+          `;
+          wrongContainer.appendChild(card);
+        });
+      }
+    }
+
+    /**
+     * 繪製大尺寸、獨立一行、防溢出、取消閃爍之能力雷達圖
+     */
+    function renderAbilityRadarChart(abilityData) {
+      const radarSection = document.getElementById('radarSection');
+      if (!abilityData || Object.keys(abilityData).length === 0) {
+        radarSection.style.display = 'none';
+        return;
+      }
+
+      radarSection.style.display = 'block';
+
+      const labels = Object.keys(abilityData);
+      const scores = labels.map(l => abilityData[l].rate);
+
+      const ctx = document.getElementById('abilityRadarChartCanvas').getContext('2d');
+      if (radarChartInstance) {
+        radarChartInstance.destroy();
+      }
+
+      const gradientFill = ctx.createRadialGradient(290, 290, 20, 290, 290, 280);
+      gradientFill.addColorStop(0, 'rgba(14, 165, 233, 0.65)');
+      gradientFill.addColorStop(0.6, 'rgba(37, 99, 235, 0.35)');
+      gradientFill.addColorStop(1, 'rgba(13, 148, 136, 0.12)');
+
+      radarChartInstance = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '能力掌握得分率 (%)',
+            data: scores,
+            backgroundColor: gradientFill,
+            borderColor: '#0284c7',
+            borderWidth: 3,
+            borderJoinStyle: 'round',
+            // 修正：pointRadius 與 pointHoverRadius 保持一致，徹底杜絕滑鼠 hover 震顫閃爍
+            pointBackgroundColor: '#ffffff',
+            pointBorderColor: '#0284c7',
+            pointBorderWidth: 2.5,
+            pointRadius: 5,
+            pointHoverRadius: 5,
+            pointHoverBorderWidth: 2.5,
+            pointHoverBackgroundColor: '#0284c7',
+            pointHoverBorderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          // 關閉點 hover 狀態下的動畫突變
+          transitions: {
+            active: {
+              animation: { duration: 0 }
+            }
+          },
+          interaction: {
+            mode: 'nearest',
+            intersect: false
+          },
+          animation: {
+            duration: 1200,
+            easing: 'easeOutQuart'
+          },
+          // 修正：加入外圍安全邊距，確保文字不會頂到邊緣
+          layout: {
+            padding: {
+              top: 25,
+              bottom: 25,
+              left: 45,
+              right: 45
+            }
+          },
+          scales: {
+            r: {
+              min: 0,
+              max: 100,
+              ticks: {
+                stepSize: 20,
+                color: '#94a3b8',
+                backdropColor: 'transparent',
+                font: { size: 11, weight: '700' },
+                callback: function(value) { return value + '%'; }
+              },
+              grid: {
+                color: 'rgba(203, 213, 225, 0.8)',
+                lineWidth: 1.4
+              },
+              angleLines: {
+                color: 'rgba(148, 163, 184, 0.6)',
+                lineWidth: 1.5
+              },
+              pointLabels: {
+                font: {
+                  size: 12,
+                  weight: '800',
+                  family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto'
+                },
+                color: '#0f172a',
+                padding: 12,
+                // 修正：超過 7 個字的長文字自動分行，避免橫向文字超出版面被截斷
+                callback: function(label) {
+                  if (typeof label === 'string' && label.length > 7) {
+                    return [label.slice(0, 7), label.slice(7)];
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.92)',
+              titleFont: { size: 14, weight: '900' },
+              bodyFont: { size: 13, weight: '700' },
+              padding: 12,
+              cornerRadius: 10,
+              displayColors: false,
+              callbacks: {
+                title: function(items) {
+                  return '🎯 ' + items[0].label;
+                },
+                label: function(context) {
+                  const lbl = context.label || '';
+                  const itm = abilityData[lbl];
+                  return [
+                    `📊 得分率：${context.raw}%`,
+                    `📝 答對表現：${itm ? itm.correct + ' / ' + itm.total + ' 題' : ''}`
+                  ];
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function startPostSubmissionPipeline(result) {
+      activeLotteryData = result.lotteryResult;
+      activePendingQueue = [];
+
+      if (result.meteorShowerApplied && currentUserProfile) {
+        currentUserProfile.meteorShowerActive = '0';
+      }
+
+      if (result.duoDuoYiShanCleared && currentUserProfile) {
+        currentUserProfile.moreIsMerrierActive = '0';
+        currentUserProfile.moreIsMerrierSender = '';
+      }
+
+      const p = result.pendingTriggers || {};
+      if (p.meteorShower) {
+        activePendingQueue.push({
+          type: 'meteorShower',
+          title: '🌠 事件獎勵：流星雨下的祝福',
+          icon: '🌠',
+          content: `流星雨下，您已獲得來自【<b>${escapeHtml(p.meteorShower.sender || '某同學')}</b>】的祝福！<br>你們都將在下一次的答題中獲得<b>雙倍經驗（答對與課題表現 x2 入庫）</b>！`
+        });
+      }
+      if (p.megaphone) {
+        activePendingQueue.push({
+          type: 'megaphone',
+          title: '💬 道具：眾裡尋他傳聲筒',
+          icon: '💬',
+          content: `來自【<b>${escapeHtml(p.megaphone.sender || '某同學')}</b>】傳給您一段話：<br><br>` +
+                   `<div style="font-style:italic; color:#0f172a; font-weight:800; font-size:1.05rem;">「${escapeHtml(p.megaphone.message)}」</div><br>` +
+                   `您已獲得<b>「驀然回首傳聲筒」</b>，是否要回應對方一段訊息？`,
+          canReply: true,
+          replyToClass: (p.megaphone.sender || '').split(' ')[0] || '',
+          replyToName: (p.megaphone.sender || '').split(' ')[1] || p.megaphone.sender || ''
+        });
+      }
+      if (p.lookback) {
+        activePendingQueue.push({
+          type: 'lookback',
+          title: '💬 回聲：驀然回首傳聲筒',
+          icon: '💬',
+          content: `【<b>${escapeHtml(p.lookback.sender || '某同學')}</b>】回應了您的傳聲：<br><br>` +
+                   `<div style="font-style:italic; color:#0f172a; font-weight:800; font-size:1.05rem;">「${escapeHtml(p.lookback.message)}」</div>`
+        });
+      }
+      if (result.duoDuoYiShanCleared) {
+        activePendingQueue.push({
+          type: 'duoDuoCleared',
+          title: '🎉 技能效果解除：多多益善',
+          icon: '🤪',
+          content: `太厲害了！您已在練習模式下順利完成 60 道題目，成功解除來自對方的「<b>多多益善</b>」效果限制！之後練習可自由調整題數！`
+        });
+      }
+
+      setTimeout(showLotteryModal, 800);
+    }
+
+    function showLotteryModal() {
+      if (!activeLotteryData) return;
+
+      const modal = document.getElementById('lotteryResultModal');
+      const desc = document.getElementById('lotteryModalDesc');
+      const box = document.getElementById('lotteryNumbersBox');
+      const prizeBanner = document.getElementById('lotteryPrizeBanner');
+      const prizeName = document.getElementById('lotteryPrizeName');
+
+      const d = activeLotteryData;
+      let descHtml = `🎯 基礎抽獎數：<b>${d.baseLotteryCount}</b> 個 ｜ 稱號加乘後之抽獎數：<b>${d.numC}</b> 個`;
+      if (d.multiplier > 1) {
+        descHtml += ` ｜ 加乘倍率：<b style="color:#f59e0b;">x${d.multiplier}</b>`;
+      }
+      descHtml += `<br>🎁 最終抽取號碼數：<b style="color:#2563eb; font-size:1.15rem;">${d.finalDrawCount}</b> 個`;
+      if (d.finalDrawCount >= 400) {
+        descHtml += ` <span style="color:#10b981; font-weight:800;">(已達400上限，100%必中獎！)</span>`;
+      }
+      descHtml += `<br>🌟 本期中獎號碼：<b style="color:#ef4444; font-size:1.25rem;">【 ${d.winningNumber} 】</b>`;
+      desc.innerHTML = descHtml;
+
+      box.innerHTML = '';
+      d.drawnNumbers.forEach(n => {
+        const chip = document.createElement('span');
+        chip.className = 'lottery-chip' + (n === d.winningNumber ? ' hit' : '');
+        chip.textContent = n;
+        box.appendChild(chip);
+      });
+
+      if (d.isWon === 1) {
+        prizeBanner.style.display = 'block';
+        prizeName.textContent = d.awardedEvent;
+      } else {
+        prizeBanner.style.display = 'none';
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    function proceedAfterLottery() {
+      document.getElementById('lotteryResultModal').style.display = 'none';
+      const d = activeLotteryData;
+
+      if (d && d.isWon === 1) {
+        if (d.awardedEvent === '特殊類：心想事成') {
+          openWishesModal();
+        } else if (d.awardedEvent === '事件：流星雨下的祝福') {
+          openInteractiveActionModal('meteor');
+        } else if (d.awardedEvent === '道具：眾裡尋他傳聲筒') {
+          openInteractiveActionModal('megaphone');
+        } else if (d.awardedEvent === '技能：多多益善') {
+          openInteractiveActionModal('more_the_merrier');
+        } else {
+          processNextPendingNotice();
+        }
+      } else {
+        processNextPendingNotice();
+      }
+    }
+
+    let chosenWish = 'meteor';
+    function openWishesModal() {
+      document.getElementById('wishesModal').style.display = 'flex';
+    }
+    function selectWish(type, elem) {
+      chosenWish = type;
+      document.querySelectorAll('#wishOptionsContainer .wish-item').forEach(el => el.classList.remove('selected'));
+      if (elem) elem.classList.add('selected');
+    }
+    async function handleConfirmWish() {
+      document.getElementById('wishesModal').style.display = 'none';
+      if (chosenWish === 'meteor') {
+        openInteractiveActionModal('meteor');
+      } else if (chosenWish === 'megaphone') {
+        openInteractiveActionModal('megaphone');
+      } else if (chosenWish === 'more') {
+        openInteractiveActionModal('more_the_merrier');
+      } else if (chosenWish === 'knowledge') {
+        showLoading(true, '📖 正在與知識產生共鳴...');
+        try {
+          const res = await callGasApi('triggerGameEvent', { eventType: 'knowledge_resonance' });
+          showLoading(false);
+          alert(res.message || '知識的共鳴已成功觸發！');
+          processNextPendingNotice();
+        } catch (err) {
+          showLoading(false);
+          alert('觸發失敗：' + err.message);
+        }
+      }
+    }
+
+    function openInteractiveActionModal(type, prefillClass = '', prefillName = '') {
+      currentActionType = type;
+      const modal = document.getElementById('interactiveActionModal');
+      const icon = document.getElementById('actionIcon');
+      const title = document.getElementById('actionTitle');
+      const desc = document.getElementById('actionDesc');
+      const msgGroup = document.getElementById('actionMessageGroup');
+      const btn = document.getElementById('btnActionSubmit');
+
+      document.getElementById('actionTargetClass').value = prefillClass;
+      document.getElementById('actionTargetName').value = prefillName;
+      document.getElementById('actionMessageText').value = '';
+
+      if (type === 'meteor') {
+        icon.textContent = '🌠';
+        title.textContent = '事件：流星雨下的祝福';
+        desc.textContent = '說出一個人的姓名，你們都可在下一次答題中獲得雙雙倍經驗！';
+        msgGroup.style.display = 'none';
+        btn.textContent = '祝福！';
+      } else if (type === 'megaphone') {
+        icon.textContent = '💬';
+        title.textContent = '道具：眾裡尋他傳聲筒';
+        desc.textContent = '說出一個人的姓名並傳送一段文字訊息，對方將收到信息，並獲得「驀然回首傳聲筒」！';
+        msgGroup.style.display = 'block';
+        btn.textContent = '傳聲！';
+      } else if (type === 'more_the_merrier') {
+        icon.textContent = '🤪';
+        title.textContent = '發動技能：多多益善';
+        desc.textContent = '說出一個人的姓名，對方下一次練習必須強制挑戰 60 道題目！';
+        msgGroup.style.display = 'none';
+        btn.textContent = '益你！';
+      } else if (type === 'lookback') {
+        icon.textContent = '💬';
+        title.textContent = '道具：驀然回首傳聲筒';
+        desc.textContent = '你收到對方的信息，並獲得「驀然回首傳聲筒」，可選擇是否回應對方一段文字訊息：';
+        msgGroup.style.display = 'block';
+        btn.textContent = '傳聲！';
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    async function submitInteractiveAction() {
+      const targetClass = document.getElementById('actionTargetClass').value.trim();
+      const targetName = document.getElementById('actionTargetName').value.trim();
+      const messageText = document.getElementById('actionMessageText').value.trim();
+
+      if (!targetClass || !targetName) {
+        alert('請完整輸入目標同學的班別與姓名！');
+        return;
+      }
+      if ((currentActionType === 'megaphone' || currentActionType === 'lookback') && !messageText) {
+        alert('請輸入想傳送的文字信息！');
+        return;
+      }
+
+      showLoading(true, '📡 正在跨時空送信中...');
+      try {
+        const res = await callGasApi('triggerGameEvent', {
+          eventType: currentActionType,
+          targetClass: targetClass,
+          targetName: targetName,
+          messageText: messageText
+        });
+        showLoading(false);
+        alert(res.message || '發送成功！');
+        document.getElementById('interactiveActionModal').style.display = 'none';
+        processNextPendingNotice();
+      } catch (err) {
+        showLoading(false);
+        alert(err.message || '發送失敗');
+      }
+    }
+
+    function processNextPendingNotice() {
+      if (activePendingQueue.length === 0) return;
+      const item = activePendingQueue.shift();
+
+      const modal = document.getElementById('pendingNoticeModal');
+      document.getElementById('noticeIcon').textContent = item.icon;
+      document.getElementById('noticeTitle').textContent = item.title;
+      document.getElementById('noticeContent').innerHTML = item.content;
+
+      const btnArea = document.getElementById('noticeBtnArea');
+      btnArea.innerHTML = '';
+
+      if (item.canReply) {
+        const replyBtn = document.createElement('button');
+        replyBtn.className = 'btn-campus';
+        replyBtn.style.background = 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)';
+        replyBtn.textContent = '✍️ 回應「眾裡尋他傳聲筒」';
+        replyBtn.onclick = () => {
+          modal.style.display = 'none';
+          callGasApi('clearUserNotice', { noticeType: 'megaphone' });
+          openInteractiveActionModal('lookback', item.replyToClass, item.replyToName);
+        };
+        btnArea.appendChild(replyBtn);
+
+        const skipBtn = document.createElement('button');
+        skipBtn.className = 'btn-campus';
+        skipBtn.style.background = '#e2e8f0';
+        skipBtn.style.color = '#334155';
+        skipBtn.textContent = '不回應';
+        skipBtn.onclick = () => {
+          modal.style.display = 'none';
+          callGasApi('clearUserNotice', { noticeType: 'megaphone' });
+          processNextPendingNotice();
+        };
+        btnArea.appendChild(skipBtn);
+      } else {
+        const okBtn = document.createElement('button');
+        okBtn.className = 'btn-campus';
+        okBtn.textContent = '我知道了';
+        okBtn.onclick = () => {
+          modal.style.display = 'none';
+          if (item.type === 'lookback') {
+            callGasApi('clearUserNotice', { noticeType: 'lookback' });
+          }
+          processNextPendingNotice();
+        };
+        btnArea.appendChild(okBtn);
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    function showPendingNotice(title, icon, content, btnText = '我知道了') {
+      const modal = document.getElementById('pendingNoticeModal');
+      document.getElementById('noticeIcon').textContent = icon;
+      document.getElementById('noticeTitle').textContent = title;
+      document.getElementById('noticeContent').innerHTML = content;
+      
+      const btnArea = document.getElementById('noticeBtnArea');
+      btnArea.innerHTML = `<button class="btn-campus" onclick="dismissPendingNotice()">${escapeHtml(btnText)}</button>`;
+      
+      modal.style.display = 'flex';
+    }
+
+    function dismissPendingNotice() {
+      document.getElementById('pendingNoticeModal').style.display = 'none';
+    }
+
+    function handleResetToSetup() {
+      document.getElementById('resultView').style.display = 'none';
+      document.getElementById('setupView').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // 返回主頁時強制檢查多多益善狀態
+      checkMoreTheMerrierOnLogin();
+    }
+
+    function fireCampusConfetti() {
+      const duration = 2.5 * 1000;
+      const animationEnd = Date.now() + duration;
+      const interval = setInterval(() => {
+        const timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) return clearInterval(interval);
+        confetti({
+          particleCount: 40,
+          spread: 80,
+          origin: { x: Math.random() * 0.6 + 0.2, y: Math.random() - 0.2 },
+          colors: ['#2563eb', '#0284c7', '#f59e0b', '#10b981']
+        });
+      }, 300);
+    }
+
+    function animateValue(id, start, end, duration) {
+      const obj = document.getElementById(id);
+      if (start === end) { obj.textContent = end; return; }
+      const range = end - start;
+      let current = start;
+      const increment = end > start ? 1 : -1;
+      const stepTime = Math.abs(Math.floor(duration / (range || 1)));
+      const timer = setInterval(() => {
+        current += increment * Math.ceil(Math.abs(range) / 25);
+        if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+          obj.textContent = end;
+          clearInterval(timer);
+        } else {
+          obj.textContent = current;
+        }
+      }, Math.max(stepTime, 20));
+    }
+
+    function showLoading(show, text) {
+      const overlay = document.getElementById('loadingOverlay');
+      if (show) {
+        document.getElementById('loadingText').textContent = text || '載入中...';
+        overlay.style.display = 'flex';
+      } else {
+        overlay.style.display = 'none';
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    /* 智慧排版：自動清理前置與後置空格，保證頂格對齊 */
+    function formatPythonQuestion(rawText) {
+      if (!rawText) return '';
+      var text = String(rawText).trim();
+
+      if (text.indexOf(';') !== -1 && (text.indexOf('print') !== -1 || text.indexOf('=') !== -1 || text.indexOf('while') !== -1 || text.indexOf('for') !== -1 || text.indexOf('pass') !== -1)) {
+        text = text.replace(/;\s*/g, '\n');
+      }
+
+      text = text.replace(/:\s*(print\([^\)]+\)|pass|continue|break)\s+else:/g, ':\n    $1\nelse:');
+      text = text.replace(/else:\s*(print\([^\)]+\)|pass)/g, 'else:\n    $1');
+      text = text.replace(/(for\s+[^:]+:)\s*(if\s+[^:]+:)/g, '$1\n    $2');
+      text = text.replace(/(if\s+[^:]+:)\s*(continue|break|pass)/g, '$1\n        $2');
+
+      return escapeHtml(text);
+    }
+  </script>
+</body>
+</html>
